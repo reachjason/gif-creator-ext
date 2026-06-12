@@ -363,81 +363,152 @@ function stopPlayback() {
   clearInterval(playTimer);
 }
 
-// ---- Stats ----
-function exportPlan() {
-  const f = Number(exportFpsSel.value);
+// ---- Planning / stats ----
+// Source frame indices for the output, sampled across the trimmed range at fps f.
+function frameIndices(f) {
   const n = trimEnd - trimStart + 1;
   const duration = n / captureFps;
   const outCount = Math.max(1, Math.round(duration * f));
+  const idx = [];
+  for (let k = 0; k < outCount; k++) {
+    const srcOffset = Math.round(k * (captureFps / f));
+    idx.push(Math.min(trimEnd, trimStart + srcOffset));
+  }
+  return { idx, duration, outCount };
+}
+
+// Crop dimensions in source pixels and the base scale from the max-side cap.
+function baseGeometry() {
   const cropW = Math.max(1, Math.round(crop.w * meta.width));
   const cropH = Math.max(1, Math.round(crop.h * meta.height));
-  return { f, duration, outCount, cropW, cropH };
+  const longest = Math.max(cropW, cropH);
+  const maxSide = Number(el("maxSide").value);
+  const scale = maxSide > 0 ? Math.min(1, maxSide / longest) : 1;
+  return { cropW, cropH, longest, scale };
+}
+
+function exportPlan() {
+  const f = Number(exportFpsSel.value);
+  const { cropW, cropH, scale } = baseGeometry();
+  const { duration, outCount } = frameIndices(f);
+  const outW = Math.max(1, Math.round(cropW * scale));
+  const outH = Math.max(1, Math.round(cropH * scale));
+  return { f, duration, outCount, cropW, cropH, outW, outH, scale };
+}
+
+// Rough size guess (~0.6 bytes/px/frame for typical screen content). The
+// auto-fit loop measures the real size, so this is only a pre-encode hint.
+function estimateBytes(outW, outH, outCount) {
+  return outW * outH * outCount * 0.6;
+}
+
+function fmtSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1048576).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 function updateStats() {
-  const { duration, outCount, cropW, cropH } = exportPlan();
-  el("statCrop").textContent = `${cropW} × ${cropH}px`;
+  const { duration, outCount, outW, outH } = exportPlan();
+  el("statCrop").textContent = `${outW} × ${outH}px`;
   el("statLength").textContent = `${duration.toFixed(1)}s`;
   el("statFrames").textContent = `${outCount}`;
+  el("statSize").textContent = `~${fmtSize(estimateBytes(outW, outH, outCount))}`;
 }
 
-exportFpsSel.addEventListener("change", updateStats);
+["change", "input"].forEach((evt) => {
+  exportFpsSel.addEventListener(evt, updateStats);
+  el("maxSide").addEventListener(evt, updateStats);
+});
 
 // ---- Export ----
 exportBtn.addEventListener("click", runExport);
 
-function runExport() {
-  stopPlayback();
-  const { f, outCount, cropW, cropH } = exportPlan();
-  const quality = GIF_QUALITY[exportQualitySel.value] ?? 10;
-  const delay = Math.round(1000 / f);
+// Encode one GIF at a given output scale; resolves with the Blob.
+function encodeAt(scale, f) {
+  return new Promise((resolve) => {
+    const { cropW, cropH } = baseGeometry();
+    const outW = Math.max(1, Math.round(cropW * scale));
+    const outH = Math.max(1, Math.round(cropH * scale));
+    const quality = GIF_QUALITY[exportQualitySel.value] ?? 10;
+    const delay = Math.round(1000 / f);
 
+    const gif = new GIF({
+      workers: 2,
+      quality,
+      width: outW,
+      height: outH,
+      workerScript: chrome.runtime.getURL("lib/gif.worker.js"),
+    });
+
+    const cropX = Math.round(crop.x * meta.width);
+    const cropY = Math.round(crop.y * meta.height);
+    const tmp = document.createElement("canvas");
+    tmp.width = outW;
+    tmp.height = outH;
+    const tctx = tmp.getContext("2d");
+
+    for (const srcIdx of frameIndices(f).idx) {
+      tctx.clearRect(0, 0, outW, outH);
+      tctx.drawImage(frames[srcIdx], cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+      gif.addFrame(tctx, { copy: true, delay });
+    }
+
+    gif.on("progress", (p) => {
+      exportBar.style.width = `${Math.round(p * 100)}%`;
+    });
+    gif.on("finished", (blob) => resolve(blob));
+    gif.render();
+  });
+}
+
+async function runExport() {
+  stopPlayback();
   exportBtn.disabled = true;
   exportProgress.hidden = false;
   exportBar.style.width = "0%";
-  exportStatus.textContent = "Encoding… 0%";
 
-  const gif = new GIF({
-    workers: 2,
-    quality,
-    width: cropW,
-    height: cropH,
-    workerScript: chrome.runtime.getURL("lib/gif.worker.js"),
-  });
+  const f = Number(exportFpsSel.value);
+  const targetMB = Number(el("targetSize").value);
+  const targetBytes = targetMB > 0 ? targetMB * 1048576 : 0;
+  const { scale: startScale, longest } = baseGeometry();
+  // Never shrink below ~160px on the longest side (it stops being watchable).
+  const minScale = Math.min(startScale, 160 / longest);
 
-  const cropX = Math.round(crop.x * meta.width);
-  const cropY = Math.round(crop.y * meta.height);
-  const tmp = document.createElement("canvas");
-  tmp.width = cropW;
-  tmp.height = cropH;
-  const tctx = tmp.getContext("2d");
+  let scale = startScale;
+  let blob = null;
+  const MAX_PASSES = 6;
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    exportStatus.textContent = pass === 0 ? "Encoding…" : `Encoding (pass ${pass + 1})…`;
+    blob = await encodeAt(scale, f);
+    if (!targetBytes || blob.size <= targetBytes) break;
 
-  for (let k = 0; k < outCount; k++) {
-    const srcOffset = Math.round(k * (captureFps / f));
-    const srcIdx = Math.min(trimEnd, trimStart + srcOffset);
-    tctx.clearRect(0, 0, cropW, cropH);
-    tctx.drawImage(frames[srcIdx], cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-    gif.addFrame(tctx, { copy: true, delay });
+    // GIF size scales ~ with pixel area (scale²), so aim straight for the target.
+    const ratio = Math.sqrt(targetBytes / blob.size) * 0.92;
+    const next = Math.max(minScale, scale * ratio);
+    if (next >= scale - 0.005) break; // already as small as we'll go
+    exportStatus.textContent =
+      `${fmtSize(blob.size)} > ${targetMB} MB — shrinking & re-encoding…`;
+    scale = next;
   }
 
-  gif.on("progress", (p) => {
-    const pct = Math.round(p * 100);
-    exportBar.style.width = `${pct}%`;
-    exportStatus.textContent = `Encoding… ${pct}%`;
-  });
+  // Always hand over the best result we produced.
+  const url = URL.createObjectURL(blob);
+  downloadLink.href = url;
+  downloadLink.download = `screen-capture-${stamp()}.gif`;
+  downloadLink.click();
 
-  gif.on("finished", (blob) => {
-    const url = URL.createObjectURL(blob);
-    downloadLink.href = url;
-    downloadLink.download = `screen-capture-${stamp()}.gif`;
-    downloadLink.click();
-    const kb = Math.round(blob.size / 1024);
-    exportStatus.textContent = `Done — ${kb} KB. Saved to downloads.`;
-    exportBar.style.width = "100%";
-    exportBtn.disabled = false;
-  });
-
-  gif.render();
+  exportBar.style.width = "100%";
+  el("statSize").textContent = fmtSize(blob.size);
+  if (!targetBytes || blob.size <= targetBytes) {
+    const ok = targetBytes ? " ✓ under limit" : "";
+    exportStatus.textContent = `Done — ${fmtSize(blob.size)}${ok}. Saved to downloads.`;
+  } else {
+    exportStatus.textContent =
+      `Saved at ${fmtSize(blob.size)} — couldn't reach ${targetMB} MB. ` +
+      `Lower the frame rate or trim the clip shorter.`;
+  }
+  exportBtn.disabled = false;
 }
 
 function stamp() {

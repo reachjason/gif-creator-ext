@@ -69,10 +69,33 @@
           </select>
         </div>
 
+        <div class="ctrl">
+          <label for="maxSide">Max size (longest side)</label>
+          <select id="maxSide">
+            <option value="0">Original</option>
+            <option value="1080">1080px</option>
+            <option value="720">720px</option>
+            <option value="480" selected>480px</option>
+            <option value="360">360px</option>
+          </select>
+        </div>
+
+        <div class="ctrl">
+          <label for="targetSize">Target file size</label>
+          <select id="targetSize">
+            <option value="0">No limit</option>
+            <option value="15" selected>X / Twitter &middot; 15 MB</option>
+            <option value="8">8 MB</option>
+            <option value="5">5 MB</option>
+            <option value="2">2 MB</option>
+          </select>
+        </div>
+
         <dl class="stats">
-          <div><dt>Crop size</dt><dd id="statCrop">—</dd></div>
+          <div><dt>Output size</dt><dd id="statCrop">—</dd></div>
           <div><dt>Clip length</dt><dd id="statLength">—</dd></div>
           <div><dt>Output frames</dt><dd id="statFrames">—</dd></div>
+          <div><dt>Est. file size</dt><dd id="statSize">—</dd></div>
         </dl>
 
         <button id="exportBtn" class="primary">Export GIF</button>
