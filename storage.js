@@ -66,6 +66,15 @@ export async function getFrameCount() {
   return count;
 }
 
+// Actual stored keys, sorted. Keys may be non-contiguous if a frame write was
+// dropped, so callers should iterate these rather than assuming 0..count-1.
+export async function getFrameKeys() {
+  const db = await openDB();
+  const keys = await reqToPromise(tx(db, FRAME_STORE, "readonly").getAllKeys());
+  db.close();
+  return keys.sort((a, b) => a - b);
+}
+
 export async function setMeta(meta) {
   const db = await openDB();
   await reqToPromise(tx(db, META_STORE, "readwrite").put(meta, "recording"));

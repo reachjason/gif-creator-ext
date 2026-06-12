@@ -1,4 +1,4 @@
-import { getMeta, getFrame, getFrameCount, clearSession } from "./storage.js";
+import { getMeta, getFrame, getFrameKeys, clearSession } from "./storage.js";
 
 const GIF_QUALITY = { low: 20, medium: 10, high: 1 }; // gif.js: 1=best, 30=worst
 
@@ -43,20 +43,32 @@ const downloadLink = el("downloadLink");
 
 async function init() {
   meta = await getMeta();
-  frameCount = await getFrameCount();
-  if (!meta || frameCount === 0) {
+  const keys = await getFrameKeys();
+  if (!meta || keys.length === 0) {
     loading.textContent = "No recording found. Close this tab and record again.";
     return;
   }
   captureFps = meta.fps;
-  trimEnd = frameCount - 1;
 
-  // Decode all frames to ImageBitmaps for instant scrubbing/preview.
-  for (let i = 0; i < frameCount; i++) {
-    const blob = await getFrame(i);
-    frames.push(await createImageBitmap(blob));
-    if (i % 20 === 0) loading.textContent = `Loading frames… ${i}/${frameCount}`;
+  // Decode all stored frames to ImageBitmaps for instant scrubbing/preview.
+  // Iterate the real keys (which may have gaps) and skip any frame that fails
+  // to decode, so one bad write can't stall the whole editor.
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const blob = await getFrame(keys[i]);
+      if (blob) frames.push(await createImageBitmap(blob));
+    } catch (err) {
+      console.warn(`Skipping undecodable frame ${keys[i]}`, err);
+    }
+    if (i % 20 === 0) loading.textContent = `Loading frames… ${i}/${keys.length}`;
   }
+
+  frameCount = frames.length;
+  if (frameCount === 0) {
+    loading.textContent = "Recording could not be decoded. Please record again.";
+    return;
+  }
+  trimEnd = frameCount - 1;
 
   canvas.width = meta.width;
   canvas.height = meta.height;

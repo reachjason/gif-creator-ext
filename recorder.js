@@ -20,6 +20,7 @@ let canvas = null;
 let ctx = null;
 let settings = null;
 let finished = false;
+const pendingWrites = []; // in-flight encode+store promises to flush on stop
 
 async function start() {
   settings = await getSettings();
@@ -71,14 +72,15 @@ function beginCapture() {
       return;
     }
 
-    // Snapshot the canvas synchronously, encode async so the loop stays on time.
+    // Snapshot the canvas synchronously, encode + store async so the loop stays
+    // on time. Track each write so finish() can flush them before navigating —
+    // otherwise an in-flight frame is lost and leaves a gap in the keys.
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const myIndex = frameIndex++;
-    const blob = await canvas.convertToBlob({
-      type: "image/webp",
-      quality: webpQuality,
-    });
-    await addFrame(myIndex, blob);
+    const write = canvas
+      .convertToBlob({ type: "image/webp", quality: webpQuality })
+      .then((blob) => addFrame(myIndex, blob));
+    pendingWrites.push(write);
 
     timerEl.textContent = `${(elapsed / 1000).toFixed(1)}s`;
     framesEl.textContent = `${frameIndex} frames`;
@@ -96,6 +98,10 @@ async function finish() {
     statusEl.textContent = "No frames captured.";
     return;
   }
+
+  // Flush every pending frame write before we read the count / navigate.
+  statusEl.textContent = "Finishing up…";
+  await Promise.allSettled(pendingWrites);
 
   await setMeta({
     fps: settings.fps,
