@@ -41,15 +41,41 @@ async function start() {
   // If the user stops sharing via the browser's native control, wrap up.
   stream.getVideoTracks()[0].addEventListener("ended", () => finish());
 
+  // A getDisplayMedia track often reports 0×0 for a beat after play() resolves.
+  // Capturing then would produce empty frames, so wait for real dimensions.
+  const ready = await waitForVideoDimensions();
+  if (!ready) {
+    statusEl.textContent =
+      "Couldn't read the shared video dimensions. Close this tab and try again.";
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    return;
+  }
+
   await clearSession();
   setupCanvas();
   beginCapture();
 }
 
+function waitForVideoDimensions(timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const check = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        resolve(true);
+      } else if (performance.now() - start > timeoutMs) {
+        resolve(false);
+      } else {
+        requestAnimationFrame(check);
+      }
+    };
+    check();
+  });
+}
+
 function setupCanvas() {
   const scale = QUALITY_SCALE[settings.quality] ?? 0.75;
-  const w = Math.round(video.videoWidth * scale);
-  const h = Math.round(video.videoHeight * scale);
+  const w = Math.max(1, Math.round(video.videoWidth * scale));
+  const h = Math.max(1, Math.round(video.videoHeight * scale));
   canvas = new OffscreenCanvas(w, h);
   ctx = canvas.getContext("2d", { alpha: false });
 }

@@ -42,40 +42,65 @@ const exportStatus = el("exportStatus");
 const downloadLink = el("downloadLink");
 
 async function init() {
+  try {
+    await load();
+  } catch (err) {
+    console.error("Editor init failed:", err);
+    loading.style.whiteSpace = "pre-wrap";
+    loading.style.padding = "0 24px";
+    loading.textContent =
+      `Couldn't open the editor.\n\n${err && err.message ? err.message : err}` +
+      `\n\nTry recording again. If it keeps happening, copy this and send it over.`;
+  }
+}
+
+async function load() {
   meta = await getMeta();
   const keys = await getFrameKeys();
   if (!meta || keys.length === 0) {
     loading.textContent = "No recording found. Close this tab and record again.";
     return;
   }
-  captureFps = meta.fps;
+  captureFps = meta.fps || 15;
 
   // Decode all stored frames to ImageBitmaps for instant scrubbing/preview.
   // Iterate the real keys (which may have gaps) and skip any frame that fails
   // to decode, so one bad write can't stall the whole editor.
+  let failed = 0;
   for (let i = 0; i < keys.length; i++) {
     try {
       const blob = await getFrame(keys[i]);
-      if (blob) frames.push(await createImageBitmap(blob));
+      if (blob && blob.size > 0) {
+        frames.push(await createImageBitmap(blob));
+      } else {
+        failed++;
+      }
     } catch (err) {
+      failed++;
       console.warn(`Skipping undecodable frame ${keys[i]}`, err);
     }
-    if (i % 20 === 0) loading.textContent = `Loading frames… ${i}/${keys.length}`;
+    loading.textContent = `Loading frames… ${i + 1}/${keys.length}`;
   }
 
   frameCount = frames.length;
   if (frameCount === 0) {
-    loading.textContent = "Recording could not be decoded. Please record again.";
+    loading.textContent =
+      `Recording could not be decoded (${failed} empty/invalid frame(s)).\n` +
+      `This usually means the capture started before the shared screen was ` +
+      `ready. Please record again.`;
+    loading.style.whiteSpace = "pre-wrap";
     return;
   }
+
+  // Frame dimensions come from the decoded bitmaps, not just meta, so a bad
+  // meta.width/height can't break the canvas.
+  canvas.width = meta.width || frames[0].width;
+  canvas.height = meta.height || frames[0].height;
+  scrub.max = String(frameCount - 1);
   trimEnd = frameCount - 1;
 
-  canvas.width = meta.width;
-  canvas.height = meta.height;
-  scrub.max = String(frameCount - 1);
-
   buildFpsOptions();
-  exportQualitySel.value = meta.quality;
+  if (meta.quality) exportQualitySel.value = meta.quality;
   buildFilmstrip();
   applyCropBox();
   applyTrimUI();
