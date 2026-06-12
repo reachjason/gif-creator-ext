@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Recording &middot; Window GIF Creator</title>
+    <link rel="stylesheet" href="recorder.css" />
+  </head>
+  <body>
+    <div class="stage">
+      <div id="status" class="status">Choose what to share to begin&hellip;</div>
+      <video id="preview" autoplay muted playsinline></video>
+
+      <div class="controls">
+        <div id="timer" class="timer">0.0s</div>
+        <div id="frames" class="meta">0 frames</div>
+        <button id="stop" class="stop" disabled>Stop &amp; Edit</button>
+        <button id="cancel" class="cancel">Cancel</button>
+      </div>
+
+      <div id="progress" class="progress-track" hidden>
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </div>
+
+    <script type="module" src="recorder.js"></script>
+  </body>
+</html>

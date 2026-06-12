@@ -1,0 +1,118 @@
+:root {
+  --bg: #15171c;
+  --panel: #24262e;
+  --border: #34373f;
+  --text: #e8e9ed;
+  --muted: #9a9da8;
+  --accent: #6c8cff;
+  --danger: #ff5b6e;
+  --danger-press: #ec4659;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.stage {
+  width: min(900px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.status {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+video {
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.timer {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.timer.recording {
+  color: var(--danger);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 70px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+}
+
+.stop {
+  background: var(--danger);
+  color: white;
+  border-color: transparent;
+}
+
+.stop:hover:not(:disabled) {
+  background: var(--danger-press);
+}
+
+.stop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cancel {
+  background: transparent;
+  color: var(--muted);
+}
+
+.cancel:hover {
+  color: var(--text);
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--panel);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}

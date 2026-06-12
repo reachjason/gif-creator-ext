@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Edit GIF &middot; Window GIF Creator</title>
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <div id="loading" class="loading">Loading frames&hellip;</div>
+
+    <main id="editor" hidden>
+      <section class="preview-col">
+        <div class="preview-wrap" id="previewWrap">
+          <canvas id="frameCanvas"></canvas>
+          <div class="crop-box" id="cropBox">
+            <span class="handle nw" data-h="nw"></span>
+            <span class="handle ne" data-h="ne"></span>
+            <span class="handle sw" data-h="sw"></span>
+            <span class="handle se" data-h="se"></span>
+          </div>
+        </div>
+
+        <div class="playbar">
+          <button id="playBtn" class="ghost">&#9654; Play</button>
+          <input id="scrub" type="range" min="0" max="0" step="1" value="0" />
+          <span id="frameLabel" class="mono">0 / 0</span>
+        </div>
+
+        <div class="timeline" id="timeline">
+          <div class="filmstrip" id="filmstrip"></div>
+          <div class="trim-shade left" id="shadeLeft"></div>
+          <div class="trim-shade right" id="shadeRight"></div>
+          <div class="trim-handle start" id="trimStart" data-t="start"></div>
+          <div class="trim-handle end" id="trimEnd" data-t="end"></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
+        <div class="trim-readout mono" id="trimReadout"></div>
+      </section>
+
+      <aside class="controls-col">
+        <h2>Export settings</h2>
+
+        <div class="ctrl">
+          <label for="exportFps">Frame rate</label>
+          <select id="exportFps"></select>
+        </div>
+
+        <div class="ctrl">
+          <label for="exportQuality">Quality</label>
+          <select id="exportQuality">
+            <option value="low">Low &middot; smallest</option>
+            <option value="medium">Medium</option>
+            <option value="high">High &middot; sharpest</option>
+          </select>
+        </div>
+
+        <dl class="stats">
+          <div><dt>Crop size</dt><dd id="statCrop">—</dd></div>
+          <div><dt>Clip length</dt><dd id="statLength">—</dd></div>
+          <div><dt>Output frames</dt><dd id="statFrames">—</dd></div>
+        </dl>
+
+        <button id="exportBtn" class="primary">Export GIF</button>
+        <button id="restartBtn" class="ghost">Record again</button>
+
+        <div id="exportProgress" class="export-progress" hidden>
+          <div class="bar"><div id="exportBar"></div></div>
+          <span id="exportStatus" class="mono">Encoding… 0%</span>
+        </div>
+
+        <a id="downloadLink" hidden></a>
+      </aside>
+    </main>
+
+    <script src="lib/gif.js"></script>
+    <script type="module" src="editor.js"></script>
+  </body>
+</html>

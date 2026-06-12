@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Window GIF Creator</h1>
+      <p class="sub">Record a region, tab, or window &rarr; export a GIF.</p>
+    </header>
+
+    <div class="field">
+      <label for="fps">Frame rate</label>
+      <select id="fps">
+        <option value="10">10 fps</option>
+        <option value="15">15 fps</option>
+        <option value="24">24 fps</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="quality">Quality</label>
+      <select id="quality">
+        <option value="low">Low &middot; smallest file</option>
+        <option value="medium">Medium</option>
+        <option value="high">High &middot; sharpest</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="maxDuration">Max duration</label>
+      <div class="duration-row">
+        <input id="maxDuration" type="range" min="3" max="60" step="1" />
+        <span id="maxDurationLabel" class="duration-label">30s</span>
+      </div>
+    </div>
+
+    <button id="start" class="primary">Start Recording</button>
+
+    <p class="hint">
+      You'll pick what to share, then draw your crop box and trim before exporting.
+    </p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
