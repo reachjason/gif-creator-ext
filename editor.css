@@ -78,19 +78,51 @@ main {
   box-sizing: border-box;
 }
 
+.crop-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(108, 140, 255, 0.85);
+  padding: 4px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Handles sit just INSIDE the box edges so overflow:hidden on the preview
+   wrapper never clips them, even when the box is dragged to an edge. */
 .handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: var(--accent);
   border: 2px solid #fff;
   border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.handle.nw { top: -7px; left: -7px; cursor: nwse-resize; }
-.handle.ne { top: -7px; right: -7px; cursor: nesw-resize; }
-.handle.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
-.handle.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.handle.nw { top: 2px; left: 2px; cursor: nwse-resize; }
+.handle.ne { top: 2px; right: 2px; cursor: nesw-resize; }
+.handle.sw { bottom: 2px; left: 2px; cursor: nesw-resize; }
+.handle.se { bottom: 2px; right: 2px; cursor: nwse-resize; }
+.handle.n { top: 2px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle.s { bottom: 2px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle.w { left: 2px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.handle.e { right: 2px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+/* When a social aspect is locked, only the corner handles (which preserve the
+   ratio) are usable. */
+.crop-box.locked .handle.n,
+.crop-box.locked .handle.e,
+.crop-box.locked .handle.s,
+.crop-box.locked .handle.w {
+  display: none;
+}
 
 /* ---------- Playbar ---------- */
 .playbar {
@@ -189,6 +221,37 @@ main {
   letter-spacing: 0.04em;
   color: var(--muted);
   margin: 0 0 16px;
+}
+
+.section-gap {
+  margin-top: 22px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.preset:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.preset.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
 }
 
 .ctrl {

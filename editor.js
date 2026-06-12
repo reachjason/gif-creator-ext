@@ -10,7 +10,8 @@ let captureFps = 15;
 let current = 0;
 let trimStart = 0;
 let trimEnd = 0;
-let crop = { x: 0, y: 0, w: 1, h: 1 }; // normalized 0..1
+let crop = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }; // normalized 0..1, starts inset
+let lockedAspect = null; // pixel aspect (w/h) when a social preset is active
 let playing = false;
 let playTimer = null;
 
@@ -166,6 +167,7 @@ function clamp01(v) {
 
 function startCropDrag(e, mode) {
   e.preventDefault();
+  hideCropHint();
   const rect = previewWrap.getBoundingClientRect();
   const startX = e.clientX;
   const startY = e.clientY;
@@ -181,6 +183,13 @@ function startCropDrag(e, mode) {
       y = clamp01(orig.y + dy);
       x = Math.min(x, 1 - w);
       y = Math.min(y, 1 - h);
+    } else if (lockedAspect) {
+      // Aspect-locked resize: anchor the opposite corner and keep the ratio.
+      // Edge handles are hidden when locked, so mode is always a corner.
+      crop = resizeLocked(mode, orig, dx, dy);
+      applyCropBox();
+      updateStats();
+      return;
     } else {
       const MIN = 0.05;
       let right = orig.x + orig.w;
@@ -211,6 +220,80 @@ cropBox.addEventListener("pointerdown", (e) => {
   } else {
     startCropDrag(e, "move");
   }
+});
+
+function hideCropHint() {
+  const hint = cropBox.querySelector(".crop-hint");
+  if (hint) hint.remove();
+}
+
+// Convert a pixel aspect (w/h) into normalized width-per-height, accounting for
+// the frame's own pixel dimensions so squares look square on any source.
+function aspectNorm(pxAspect) {
+  return pxAspect * (meta.height / meta.width);
+}
+
+// Largest centered rect of the given pixel aspect that fits in the frame.
+function centeredRect(pxAspect) {
+  const an = aspectNorm(pxAspect);
+  let h = 1;
+  let w = an;
+  if (w > 1) {
+    w = 1;
+    h = 1 / an;
+  }
+  return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+}
+
+// Resize a corner while preserving lockedAspect, anchored at the opposite corner.
+function resizeLocked(mode, orig, dx, dy) {
+  const MIN = 0.05;
+  const an = aspectNorm(lockedAspect);
+  const anchorX = mode.includes("w") ? orig.x + orig.w : orig.x;
+  const anchorY = mode.includes("n") ? orig.y + orig.h : orig.y;
+  const movingX = clamp01((mode.includes("w") ? orig.x : orig.x + orig.w) + dx);
+  const movingY = clamp01((mode.includes("n") ? orig.y : orig.y + orig.h) + dy);
+
+  const dirX = mode.includes("w") ? -1 : 1;
+  const dirY = mode.includes("n") ? -1 : 1;
+
+  // Drive size from whichever axis the pointer pushed further, then derive the
+  // other axis from the aspect ratio.
+  let h = Math.max(Math.abs(movingY - anchorY), Math.abs(movingX - anchorX) / an, MIN);
+  let w = an * h;
+
+  // Clamp to the space available from the anchor toward the drag direction.
+  const maxW = dirX > 0 ? 1 - anchorX : anchorX;
+  const maxH = dirY > 0 ? 1 - anchorY : anchorY;
+  if (w > maxW) { w = maxW; h = w / an; }
+  if (h > maxH) { h = maxH; w = an * h; }
+
+  const x = dirX > 0 ? anchorX : anchorX - w;
+  const y = dirY > 0 ? anchorY : anchorY - h;
+  return { x, y, w, h };
+}
+
+// ---- Crop presets ----
+const presetsEl = el("presets");
+presetsEl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".preset");
+  if (!btn) return;
+  [...presetsEl.querySelectorAll(".preset")].forEach((b) =>
+    b.classList.toggle("active", b === btn)
+  );
+
+  const aspect = btn.dataset.aspect;
+  hideCropHint();
+  if (aspect === "free") {
+    lockedAspect = null;
+    cropBox.classList.remove("locked");
+  } else {
+    lockedAspect = Number(aspect);
+    cropBox.classList.add("locked");
+    crop = centeredRect(lockedAspect);
+  }
+  applyCropBox();
+  updateStats();
 });
 
 // ---- Trim handles ----

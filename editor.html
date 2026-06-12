@@ -17,6 +17,11 @@
             <span class="handle ne" data-h="ne"></span>
             <span class="handle sw" data-h="sw"></span>
             <span class="handle se" data-h="se"></span>
+            <span class="handle n" data-h="n"></span>
+            <span class="handle e" data-h="e"></span>
+            <span class="handle s" data-h="s"></span>
+            <span class="handle w" data-h="w"></span>
+            <span class="crop-hint">drag to crop</span>
           </div>
         </div>
 
@@ -38,7 +43,17 @@
       </section>
 
       <aside class="controls-col">
-        <h2>Export settings</h2>
+        <h2>Crop preset</h2>
+        <div class="presets" id="presets">
+          <button class="preset active" data-aspect="free" title="Free-form crop">Free</button>
+          <button class="preset" data-aspect="1" title="Instagram post · 1:1">Square 1:1</button>
+          <button class="preset" data-aspect="0.8" title="Instagram portrait · 4:5">Portrait 4:5</button>
+          <button class="preset" data-aspect="0.5625" title="Reels / TikTok / Stories · 9:16">Vertical 9:16</button>
+          <button class="preset" data-aspect="1.7778" title="YouTube / X landscape · 16:9">Wide 16:9</button>
+          <button class="preset" data-aspect="1.91" title="X / Facebook link · 1.91:1">Link 1.91:1</button>
+        </div>
+
+        <h2 class="section-gap">Export settings</h2>
 
         <div class="ctrl">
           <label for="exportFps">Frame rate</label>
